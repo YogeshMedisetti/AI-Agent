@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Assistant</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    .chat-container { width: 100%; max-width: 650px; height: 90vh; background: #1e293b; border-radius: 16px; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); overflow: hidden; border: 1px solid #334155; }
+    .header { padding: 16px 20px; background: #0f172a; border-bottom: 1px solid #334155; display: flex; align-items: center; gap: 12px; }
+    .status-dot { width: 10px; height: 10px; background: #10b981; border-radius: 50%; }
+    .header h2 { font-size: 1.1rem; font-weight: 600; }
+    .messages-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+    .message { max-width: 80%; padding: 12px 16px; border-radius: 12px; line-height: 1.5; font-size: 0.95rem; word-wrap: break-word; white-space: pre-wrap; }
+    .user { align-self: flex-end; background-color: #3b82f6; color: #ffffff; border-bottom-right-radius: 2px; }
+    .bot { align-self: flex-start; background-color: #334155; color: #f1f5f9; border-bottom-left-radius: 2px; }
+    .input-bar { padding: 16px; background: #0f172a; border-top: 1px solid #334155; display: flex; gap: 10px; }
+    input { flex: 1; padding: 12px 16px; border-radius: 8px; border: 1px solid #475569; background: #1e293b; color: #fff; font-size: 1rem; outline: none; }
+    input:focus { border-color: #3b82f6; }
+    button { padding: 12px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    button:hover { background: #2563eb; }
+    button:disabled { background: #64748b; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="header">
+      <div class="status-dot"></div>
+      <h2>AI Assistant</h2>
+    </div>
+    <div class="messages-area" id="messagesArea">
+      <div class="message bot">Hello! How can I help you today?</div>
+    </div>
+    <div class="input-bar">
+      <input type="text" id="userInput" placeholder="Type your message..." autocomplete="off" />
+      <button id="sendBtn" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const messagesArea = document.getElementById("messagesArea");
+    const userInput = document.getElementById("userInput");
+    const sendBtn = document.getElementById("sendBtn");
+    let conversationHistory = [];
+
+    userInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    function appendMessage(role, text) {
+      const msgDiv = document.createElement("div");
+      msgDiv.classList.add("message", role);
+      msgDiv.textContent = text;
+      messagesArea.appendChild(msgDiv);
+      messagesArea.scrollTop = messagesArea.scrollHeight;
+      return msgDiv;
+    }
+
+    async function sendMessage() {
+      const text = userInput.value.trim();
+      if (!text) return;
+
+      appendMessage("user", text);
+      conversationHistory.push({ role: "user", text });
+      userInput.value = "";
+      userInput.disabled = true;
+      sendBtn.disabled = true;
+
+      const botMsg = appendMessage("bot", "Thinking...");
+
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: conversationHistory })
+        });
+        const data = await response.json();
+        if (response.ok) {
+          botMsg.textContent = data.reply;
+          conversationHistory.push({ role: "model", text: data.reply });
+        } else {
+          botMsg.textContent = "Error: " + (data.detail || "Unable to fetch reply.");
+        }
+      } catch (err) {
+        botMsg.textContent = "Error connecting to server. Ensure app.py is running.";
+      } finally {
+        userInput.disabled = false;
+        sendBtn.disabled = false;
+        userInput.focus();
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+      }
+    }
+  </script>
+</body>
+</html>
